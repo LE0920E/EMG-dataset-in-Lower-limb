@@ -1,11 +1,10 @@
-from model import model,criterion_action,criterion_status,optimizer,scheduler
+from factory_model import model,criterion_action,criterion_status,optimizer,scheduler,device,model_version,train_epoches_num
 from dataset import train_loader,test_loader,ACTION_LABELS, STATUS_LABELS
 import torch
 from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
 import os
 import time
-from model import device,model_version
 import pandas as pd
 
 
@@ -223,7 +222,7 @@ test_accuracies_action = []
 test_accuracies_status = []
 
 # 设置训练轮数
-num_epochs = 1000
+num_epochs = train_epoches_num
 MODEL_VERSION = model_version
 accuracy_file=r"./models/Accuracy.csv"
 # 初始化最佳准确率和保存路径

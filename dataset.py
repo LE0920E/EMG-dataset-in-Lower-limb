@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
-from model import device
+from factory_model import device
 
 ACTION_LABELS = {'gait': 0, 'sitting': 1, 'standing': 2}
 STATUS_LABELS = {'N': 0, 'A': 1}  # N: Normal, A: Abnormal

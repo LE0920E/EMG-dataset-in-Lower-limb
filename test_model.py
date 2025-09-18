@@ -1,4 +1,4 @@
-from model import model,criterion_action,criterion_status,optimizer,scheduler
+from factory_model import model,criterion_action,criterion_status,optimizer,scheduler,device,model_version,test_epoches_num
 from dataset import full_loader,test_loader,ACTION_LABELS, STATUS_LABELS
 import torch
 from sklearn.metrics import accuracy_score
@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import os
 import time
 from sklearn.metrics import accuracy_score
-from model import device,model_version
+
 
 import numpy as np
 def test_model(model, data_loader, criterion_action, criterion_status):
@@ -53,7 +53,7 @@ test_accuracies_status = []
 test_accuracies_average=[]
 
 # 设置训练轮数
-num_epochs = 1000
+num_epochs = test_epoches_num
 MODEL_VERSION = model_version
 
 # 初始化最佳准确率和保存路径
