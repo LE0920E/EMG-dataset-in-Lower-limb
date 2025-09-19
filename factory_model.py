@@ -9,14 +9,16 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 
-model_version = "v1.1.1"
+model_version = "v1.1.2"
 test_epoches_num=10
-train_epoches_num=10
+train_epoches_num=10000
 
 
 MODEL_CLASSES = {
-    'v1.1.1': models.LSMModel,           # 注意：这里不加 ()，是类本身
-    'v2.0': models.TransformerModel,     # 不是实例！
+    'v1.1.1': models.LSMModel,          
+    'v1.1.2':models.LSTM_AttentionModel,
+    'v2.0': models.TransformerModel,     
+
 }
 
 def get_model(version, **kwargs):
