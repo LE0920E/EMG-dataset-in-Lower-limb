@@ -9,7 +9,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 
-model_version = "v1.1.2"
+model_version = "v1.1.3"
 test_epoches_num=10
 train_epoches_num=10000
 
@@ -17,6 +17,7 @@ train_epoches_num=10000
 MODEL_CLASSES = {
     'v1.1.1': models.LSMModel,          
     'v1.1.2':models.LSTM_AttentionModel,
+    'v1.1.3':models.CNN_LSTMModel,
     'v2.0': models.TransformerModel,     
 
 }
