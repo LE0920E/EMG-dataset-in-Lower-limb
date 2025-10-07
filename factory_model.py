@@ -11,7 +11,7 @@ print(f"Using device: {device}")
 
 model_version = "v1.1.3"
 test_epoches_num=10
-train_epoches_num=10000
+train_epoches_num=10
 
 
 MODEL_CLASSES = {
