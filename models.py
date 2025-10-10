@@ -4,8 +4,18 @@ import torch.nn as nn
 
 # LSTM-based model with shared representation for multi-task learning
 class LSMModel(nn.Module):
-    def __init__(self, input_size=4, hidden_size=200, num_actions=3, dropout_rate=0.5):
+    def __init__(self, input_size=5, hidden_size=200, num_actions=3, dropout_rate=0.5):
+        """
+        LSTM模型，支持5通道输入（4个肌电通道+1个膝盖屈伸角度通道）
+        
+        Args:
+            input_size: 输入特征维度（默认5）
+            hidden_size: LSTM隐藏层大小
+            num_actions: 动作类别数
+            dropout_rate: Dropout率
+        """
         super(LSMModel, self).__init__()
+        self.input_size = input_size
         self.lstm = nn.LSTM(input_size, hidden_size, bidirectional=False, batch_first=True)
         self.shared_fc = nn.Linear(hidden_size, 50)
         self.action_classifier = nn.Linear(50, num_actions)
@@ -13,8 +23,9 @@ class LSMModel(nn.Module):
         self.dropout = nn.Dropout(dropout_rate)
 
     def forward(self, x):
+        # 输入形状: [batch_size, seq_len, input_size]
         lstm_out, _ = self.lstm(x)
-        lstm_out = lstm_out[:, -1, :]
+        lstm_out = lstm_out[:, -1, :]  # 使用最后一个时间步
         shared_rep = torch.relu(self.shared_fc(lstm_out))
         shared_rep = self.dropout(shared_rep)
         action_output = self.action_classifier(shared_rep)
@@ -24,8 +35,19 @@ class LSMModel(nn.Module):
 
 # Transformer-based model using encoder layers for sequence modeling
 class TransformerModel(nn.Module):
-    def __init__(self, input_size=4, hidden_size=200, num_actions=3, num_layers=2, nhead=2):
+    def __init__(self, input_size=5, hidden_size=200, num_actions=3, num_layers=2, nhead=2):
+        """
+        Transformer模型，支持5通道输入
+        
+        Args:
+            input_size: 输入特征维度（默认5）
+            hidden_size: Transformer隐藏层大小
+            num_actions: 动作类别数
+            num_layers: Transformer层数
+            nhead: 注意力头数
+        """
         super(TransformerModel, self).__init__()
+        self.input_size = input_size
         self.input_projection = nn.Linear(input_size, hidden_size)
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=hidden_size,
@@ -39,10 +61,11 @@ class TransformerModel(nn.Module):
         self.status_classifier = nn.Linear(50, 1)
 
     def forward(self, x):
+        # 输入形状: [batch_size, seq_len, input_size]
         x = self.input_projection(x)
-        x = x.permute(1, 0, 2)
+        x = x.permute(1, 0, 2)  # [seq_len, batch_size, hidden_size]
         x = self.transformer_encoder(x)
-        transformer_out = x[-1, :, :]
+        transformer_out = x[-1, :, :]  # 使用最后一个时间步
         shared_rep = torch.relu(self.shared_fc(transformer_out))
         action_output = self.action_classifier(shared_rep)
         status_output = torch.sigmoid(self.status_classifier(shared_rep))
@@ -66,13 +89,24 @@ class TemporalAttention(nn.Module):
 class LSTM_AttentionModel(nn.Module):
     def __init__(
         self,
-        input_size=4,
+        input_size=5,
         hidden_size=64,
         num_classes_action=3,
         num_classes_status=1,
         num_layers=2
     ):
+        """
+        带注意力机制的LSTM模型，支持5通道输入
+        
+        Args:
+            input_size: 输入特征维度（默认5）
+            hidden_size: LSTM隐藏层大小
+            num_classes_action: 动作类别数
+            num_classes_status: 状态类别数
+            num_layers: LSTM层数
+        """
         super(LSTM_AttentionModel, self).__init__()
+        self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
@@ -82,6 +116,7 @@ class LSTM_AttentionModel(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
+        # 输入形状: [batch_size, seq_len, input_size]
         batch_size = x.size(0)
         h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(x.device)
         c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(x.device)
@@ -96,7 +131,7 @@ class LSTM_AttentionModel(nn.Module):
 class CNN_LSTMModel(nn.Module):
     def __init__(
         self,
-        input_size=4,
+        input_size=5,
         hidden_size=64,
         num_classes_action=3,
         num_classes_status=1,
@@ -104,7 +139,20 @@ class CNN_LSTMModel(nn.Module):
         num_filters=32,
         kernel_size=3
     ):
+        """
+        CNN-LSTM模型，支持5通道输入
+        
+        Args:
+            input_size: 输入特征维度（默认5）
+            hidden_size: LSTM隐藏层大小
+            num_classes_action: 动作类别数
+            num_classes_status: 状态类别数
+            num_layers: LSTM层数
+            num_filters: 卷积滤波器数量
+            kernel_size: 卷积核大小
+        """
         super(CNN_LSTMModel, self).__init__()
+        self.input_size = input_size
         self.num_layers = num_layers
         self.hidden_size = hidden_size
 
@@ -124,17 +172,17 @@ class CNN_LSTMModel(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        # Input shape: (batch_size, seq_len, input_size)
-        x = x.permute(0, 2, 1)  # Convert to (batch_size, input_size, seq_len)
+        # 输入形状: [batch_size, seq_len, input_size]
+        x = x.permute(0, 2, 1)  # 转换为 [batch_size, input_size, seq_len]
         x = self.relu(self.conv1(x))
         x = self.dropout(x)
         x = self.relu(self.conv2(x))
         x = self.dropout(x)
-        x = x.permute(0, 2, 1)  # Back to (batch_size, seq_len, num_filters*2)
+        x = x.permute(0, 2, 1)  # 转回 [batch_size, seq_len, num_filters*2]
 
         # LSTM forward
         lstm_out, _ = self.lstm(x)
-        last_hidden = lstm_out[:, -1, :]  # Use last time step
+        last_hidden = lstm_out[:, -1, :]  # 使用最后一个时间步
 
         # Shared and output layers
         shared_rep = torch.relu(self.shared_fc(last_hidden))

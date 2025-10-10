@@ -11,7 +11,7 @@ print(f"Using device: {device}")
 
 model_version = "v1.1.1"
 test_epoches_num=10
-train_epoches_num=100
+train_epoches_num=10000
 
 
 MODEL_CLASSES = {
@@ -35,7 +35,8 @@ def get_model(version, **kwargs):
     model_instance = model_class(**kwargs)  # 实例化
     return model_instance
 
-model = get_model(model_version)        
+# 创建模型实例，指定输入特征维度为5（4个肌电通道 + 1个膝盖屈伸角度通道）
+model = get_model(model_version, input_size=5)        
 model = model.to(device)               
 
 
