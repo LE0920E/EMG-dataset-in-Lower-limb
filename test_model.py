@@ -1,4 +1,4 @@
-from factory_model import model,criterion_action,criterion_status,optimizer,scheduler,device,model_version,test_epoches_num
+from factory_model import output_dir,model,criterion_action,criterion_status,optimizer,scheduler,device,model_version,test_epoches_num
 from dataset import full_loader,test_loader,ACTION_LABELS, STATUS_LABELS
 import torch
 from sklearn.metrics import accuracy_score
@@ -18,8 +18,8 @@ def test_model(model, data_loader, criterion_action, criterion_status):
     total_loss = 0.0
 
     with torch.no_grad():
-        for X, y_action, y_status in data_loader:
-            X = X.to(device)
+        for emg_seq, seq_lengths, y_action, y_status in data_loader:
+            X = emg_seq.to(device)
             y_action = y_action.to(device)
             y_status = y_status.to(device)
             outputs = model(X)
@@ -42,7 +42,7 @@ def test_model(model, data_loader, criterion_action, criterion_status):
 
     avg_val_loss = total_loss / len(data_loader)
 
-    print(f"Test Accuracy Action: {acc_action}, Test Accuracy Status: {acc_status}, Val Loss: {avg_val_loss:.4f}")
+    print(f"Test Accuracy Action: {acc_action:.4f}, Test Accuracy Status: {acc_status:.4f}, Val Loss: {avg_val_loss:.4f}")
 
     return acc_action, acc_status,avg_val_loss
 
@@ -60,8 +60,7 @@ MODEL_VERSION = model_version
 best_acc = 0.0
 best_acc_action=0.0
 best_acc_status=0.0
-model_save_path = r"./models/best_model.pth"
-model_save_path = model_save_path.replace(".pth", f"_{MODEL_VERSION}.pth")
+model_save_path = f"{output_dir}/best_model.pth"
 
 if os.path.exists(model_save_path):
     model.load_state_dict(torch.load(model_save_path))

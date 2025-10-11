@@ -9,7 +9,7 @@ from sklearn.decomposition import PCA
 import pandas as pd
 import os
 import time
-from factory_model import model, criterion_action, criterion_status, optimizer, scheduler, device, model_version, train_epoches_num, learning_rate_history
+from factory_model import output_dir,model, criterion_action, criterion_status, optimizer, scheduler, device, model_version, train_epoches_num, learning_rate_history
 from dataset import train_loader, test_loader, ACTION_LABELS, STATUS_LABELS
 
 # 设置matplotlib中文字体
@@ -22,7 +22,7 @@ class ModelTrainerWithVisualization:
         self.train_loader = train_loader
         self.test_loader = test_loader
         self.model_version = model_version
-        self.output_dir = f"./models_v2/{model_version}"
+        self.output_dir = output_dir
         
         # 创建输出目录
         os.makedirs(self.output_dir, exist_ok=True)
@@ -50,7 +50,12 @@ class ModelTrainerWithVisualization:
         correct_status = 0
         total_samples = 0
         
-        for batch_idx, (X, y_action, y_status) in enumerate(self.train_loader):
+        for batch_idx, batch_data in enumerate(self.train_loader):
+            # 动态批处理返回 (padded_sequences, lengths, action_labels, status_labels)
+            if len(batch_data) == 4:
+                X, lengths, y_action, y_status = batch_data
+            else:
+                X, y_action, y_status = batch_data
             X = X.to(device)
             y_action = y_action.to(device)
             y_status = y_status.to(device)
@@ -94,7 +99,12 @@ class ModelTrainerWithVisualization:
         total_samples = 0
         
         with torch.no_grad():
-            for X, y_action, y_status in self.test_loader:
+            for batch_data in self.test_loader:
+                # 动态批处理返回 (padded_sequences, lengths, action_labels, status_labels)
+                if len(batch_data) == 4:
+                    X, lengths, y_action, y_status = batch_data
+                else:
+                    X, y_action, y_status = batch_data
                 X = X.to(device)
                 y_action = y_action.to(device)
                 y_status = y_status.to(device)
@@ -131,7 +141,12 @@ class ModelTrainerWithVisualization:
         all_features = []
         
         with torch.no_grad():
-            for X, y_action, y_status in self.test_loader:
+            for batch_data in self.test_loader:
+                # 动态批处理返回 (padded_sequences, lengths, action_labels, status_labels)
+                if len(batch_data) == 4:
+                    X, lengths, y_action, y_status = batch_data
+                else:
+                    X, y_action, y_status = batch_data
                 X = X.to(device)
                 outputs = self.model(X)
                 
@@ -181,10 +196,13 @@ class ModelTrainerWithVisualization:
                 all_features)
 
     def plot_training_curves(self):
-        """绘制训练曲线 - 七张图分开显示"""
+        """绘制训练曲线 - 七张图分开显示，使用实际训练轮数"""
+        actual_epochs = len(self.train_loss_history)
+        epochs_range = range(1, actual_epochs + 1)
+        
         # 1. 训练损失曲线
         plt.figure(figsize=(10, 6))
-        plt.plot(self.train_loss_history, label='训练损失', color='blue', linewidth=2)
+        plt.plot(epochs_range, self.train_loss_history, label='训练损失', color='blue', linewidth=2)
         plt.title('训练损失曲线')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
@@ -196,7 +214,7 @@ class ModelTrainerWithVisualization:
         
         # 2. 验证损失曲线
         plt.figure(figsize=(10, 6))
-        plt.plot(self.val_loss_history, label='验证损失', color='red', linewidth=2)
+        plt.plot(epochs_range, self.val_loss_history, label='验证损失', color='red', linewidth=2)
         plt.title('验证损失曲线')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
@@ -208,7 +226,7 @@ class ModelTrainerWithVisualization:
         
         # 3. 训练动作准确率曲线
         plt.figure(figsize=(10, 6))
-        plt.plot(self.train_acc_action_history, label='训练动作准确率', color='green', linewidth=2)
+        plt.plot(epochs_range, self.train_acc_action_history, label='训练动作准确率', color='green', linewidth=2)
         plt.title('训练动作准确率曲线')
         plt.xlabel('Epoch')
         plt.ylabel('Accuracy')
@@ -220,7 +238,7 @@ class ModelTrainerWithVisualization:
         
         # 4. 验证动作准确率曲线
         plt.figure(figsize=(10, 6))
-        plt.plot(self.val_acc_action_history, label='验证动作准确率', color='orange', linewidth=2)
+        plt.plot(epochs_range, self.val_acc_action_history, label='验证动作准确率', color='orange', linewidth=2)
         plt.title('验证动作准确率曲线')
         plt.xlabel('Epoch')
         plt.ylabel('Accuracy')
@@ -232,7 +250,7 @@ class ModelTrainerWithVisualization:
         
         # 5. 训练状态准确率曲线
         plt.figure(figsize=(10, 6))
-        plt.plot(self.train_acc_status_history, label='训练状态准确率', color='cyan', linewidth=2)
+        plt.plot(epochs_range, self.train_acc_status_history, label='训练状态准确率', color='cyan', linewidth=2)
         plt.title('训练状态准确率曲线')
         plt.xlabel('Epoch')
         plt.ylabel('Accuracy')
@@ -244,7 +262,7 @@ class ModelTrainerWithVisualization:
         
         # 6. 验证状态准确率曲线
         plt.figure(figsize=(10, 6))
-        plt.plot(self.val_acc_status_history, label='验证状态准确率', color='magenta', linewidth=2)
+        plt.plot(epochs_range, self.val_acc_status_history, label='验证状态准确率', color='magenta', linewidth=2)
         plt.title('验证状态准确率曲线')
         plt.xlabel('Epoch')
         plt.ylabel('Accuracy')
@@ -254,9 +272,9 @@ class ModelTrainerWithVisualization:
         plt.savefig(f'{self.output_dir}/val_status_accuracy_curve.png', dpi=300, bbox_inches='tight')
         plt.close()
         
-        # 4. 学习率曲线（单独保存）
+        # 7. 学习率曲线（单独保存）
         plt.figure(figsize=(10, 6))
-        plt.plot(self.learning_rate_history)
+        plt.plot(epochs_range, self.learning_rate_history)
         plt.title('学习率变化曲线')
         plt.xlabel('Epoch')
         plt.ylabel('Learning Rate')
@@ -379,7 +397,7 @@ class ModelTrainerWithVisualization:
 
     def save_accuracy_to_csv(self, final_acc_action, final_acc_status):
         """保存准确率到CSV文件"""
-        csv_file = f"./models_v2/Accuracy_{self.model_version}.csv"
+        csv_file = f"{self.output_dir}/Accuracy.csv"
         
         # 计算平均准确率
         avg_accuracy = (final_acc_action + final_acc_status) / 2
@@ -397,13 +415,20 @@ class ModelTrainerWithVisualization:
         print(f"准确率已保存到: {csv_file}")
 
     def train(self, num_epochs):
-        """完整的训练流程"""
+        """完整的训练流程，包含早停机制"""
         print(f"开始训练模型 {self.model_version}...")
         
         best_val_acc = 0.0
         best_model_state = None
         total_time = 0.0
         epoch_times = []
+        
+        # 早停机制参数
+        patience = 10  # 容忍轮数
+        min_lr = 1e-6  # 最小学习率阈值
+        no_improve_count = 0  # 性能未提升计数
+        best_val_loss = float('inf')  # 最佳验证损失
+        actual_epochs = num_epochs  # 实际训练轮数
         
         for epoch in range(num_epochs):
             start_time = time.time()
@@ -440,17 +465,32 @@ class ModelTrainerWithVisualization:
                 best_model_state = self.model.state_dict().copy()
                 torch.save(best_model_state, f'{self.output_dir}/best_model.pth')
             
+            # 早停机制检查
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                no_improve_count = 0
+            else:
+                no_improve_count += 1
+            
             epoch_time = time.time() - start_time
             epoch_times.append(epoch_time)
             total_time += epoch_time
             
             # 打印进度
-            if (epoch + 1) % 10 == 0:
+            if (epoch + 1) % 10 == 0 or epoch == 0:
                 print(f'Epoch {epoch+1}/{num_epochs}, '
                       f'Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, '
-                      f'LR: {current_lr:.6f}, Time: {epoch_time:.2f}s')
+                      f'LR: {current_lr:.8f}, Time: {epoch_time:.2f}s')
                 print(f'Action Acc - Train: {train_acc_action:.4f}, Val: {val_acc_action:.4f}')
                 print(f'Status Acc - Train: {train_acc_status:.4f}, Val: {val_acc_status:.4f}')
+                print(f'No improvement count: {no_improve_count}/{patience}')
+            
+            # 检查早停条件：学习率过低且性能不再提升
+            if current_lr < min_lr and no_improve_count >= patience:
+                actual_epochs = epoch + 1
+                print(f"🚨 Early stopping triggered at epoch {actual_epochs}")
+                print(f"Learning rate {current_lr:.8f} < {min_lr} and no improvement for {no_improve_count} epochs")
+                break
         
         # 加载最佳模型
         if best_model_state:
@@ -459,17 +499,17 @@ class ModelTrainerWithVisualization:
         # 收集最终预测结果
         predictions = self.collect_predictions()
         
-        # 生成所有可视化图表
+        # 生成所有可视化图表 - 使用实际训练轮数
         self.generate_all_visualizations(predictions)
         
         # 保存准确率
         self.save_accuracy_to_csv(self.val_acc_action_history[-1], self.val_acc_status_history[-1])
         
-        avg_time = total_time / num_epochs
-        print(f"训练完成！总时间: {total_time:.2f}s, 平均每轮时间: {avg_time:.2f}s")
+        avg_time = total_time / actual_epochs
+        print(f"训练完成！实际训练轮次: {actual_epochs}, 总时间: {total_time:.2f}s, 平均每轮时间: {avg_time:.2f}s")
         print(f"模型和可视化结果保存在: {self.output_dir}")
         
-        return total_time, avg_time
+        return total_time, avg_time, actual_epochs
 
     def generate_all_visualizations(self, predictions):
         """生成所有可视化图表"""
@@ -509,12 +549,13 @@ def main():
     trainer = ModelTrainerWithVisualization(model, train_loader, test_loader, model_version)
     
     # 开始训练并获取时间统计
-    total_time, avg_time = trainer.train(train_epoches_num)
+    total_time, avg_time, actual_epochs = trainer.train(train_epoches_num)
     
     # 打印详细的时间统计
     print("\n" + "="*50)
     print("训练时间统计:")
-    print(f"总训练轮次: {train_epoches_num}")
+    print(f"计划训练轮次: {train_epoches_num}")
+    print(f"实际训练轮次: {actual_epochs}")
     print(f"总训练时间: {total_time:.2f} 秒 ({total_time/60:.2f} 分钟)")
     print(f"平均每轮时间: {avg_time:.2f} 秒")
     print("="*50)

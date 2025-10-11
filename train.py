@@ -1,4 +1,11 @@
-from factory_model import model,criterion_action,criterion_status,optimizer,scheduler,device,model_version,train_epoches_num
+from factory_model import output_dir,model,criterion_action,criterion_status,optimizer,scheduler,model_version,train_epoches_num
+import torch
+
+# 设置设备
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+
+print("\n=== 开始训练 ===")
 from dataset import train_loader,test_loader,ACTION_LABELS, STATUS_LABELS
 import torch
 from sklearn.metrics import accuracy_score
@@ -15,13 +22,30 @@ def train_model(model, data_loader, criterion_action, criterion_status, optimize
     
     for epoch in range(num_epochs):
         running_loss = 0.0
-        for X, y_action, y_status in data_loader:
+        for batch_data in data_loader:
+            # 动态批处理返回 (padded_sequences, lengths, action_labels, status_labels)
+            if len(batch_data) == 4:
+                X, lengths, y_action, y_status = batch_data
+            else:
+                X, y_action, y_status = batch_data
+                lengths = None
+            
             X = X.to(device)
             y_action = y_action.to(device)
             y_status = y_status.to(device)
+            if lengths is not None:
+                lengths = lengths.to(device)
+            
             optimizer.zero_grad()
             
-            outputs = model(X)
+            # 根据是否有长度信息调用模型
+            if lengths is not None:
+                outputs = model(X, lengths)
+            else:
+                outputs = model(X)
+            
+
+            
             loss1 = criterion_action(outputs[0], y_action.long())
             loss2 = criterion_status(outputs[1].squeeze(), y_status.float())
             
@@ -43,11 +67,25 @@ def validate_model(model, data_loader, criterion_action, criterion_status):
     val_loss = 0.0
 
     with torch.no_grad():
-        for X, y_action, y_status in data_loader:
+        for batch_data in data_loader:
+            # 动态批处理返回 (padded_sequences, lengths, action_labels, status_labels)
+            if len(batch_data) == 4:
+                X, lengths, y_action, y_status = batch_data
+            else:
+                X, y_action, y_status = batch_data
+                lengths = None
+            
             X = X.to(device)
             y_action = y_action.to(device)
             y_status = y_status.to(device)
-            outputs = model(X)
+            if lengths is not None:
+                lengths = lengths.to(device)
+            
+            # 根据是否有长度信息调用模型
+            if lengths is not None:
+                outputs = model(X, lengths)
+            else:
+                outputs = model(X)
 
             loss1 = criterion_action(outputs[0], y_action.long())
             loss2 = criterion_status(outputs[1].squeeze(), y_status.float())
@@ -60,45 +98,51 @@ def validate_model(model, data_loader, criterion_action, criterion_status):
 
 from sklearn.metrics import accuracy_score
 
-def test_model(model, data_loader, criterion_action, criterion_status):
+def test_model(model, data_loader):
     model.eval()
-    all_y_action_true = []
-    all_y_action_pred = []
-    all_y_status_true = []
-    all_y_status_pred = []
-    total_loss = 0.0
+    correct_action = 0
+    correct_status = 0
+    total = 0
 
     with torch.no_grad():
-        for X, y_action, y_status in data_loader:
+        for batch_data in data_loader:
+            # 动态批处理返回 (padded_sequences, lengths, action_labels, status_labels)
+            if len(batch_data) == 4:
+                X, lengths, y_action, y_status = batch_data
+            else:
+                X, y_action, y_status = batch_data
+                lengths = None
+            
             X = X.to(device)
             y_action = y_action.to(device)
             y_status = y_status.to(device)
-            outputs = model(X)
+            if lengths is not None:
+                lengths = lengths.to(device)
+            
+            # 根据是否有长度信息调用模型
+            if lengths is not None:
+                outputs = model(X, lengths)
+            else:
+                outputs = model(X)
 
-            action_preds = torch.argmax(outputs[0], dim=1).cpu().numpy()
-            status_preds = (outputs[1].squeeze() > 0.5).float().cpu().numpy()
+            _, predicted_action = torch.max(outputs[0].data, 1)
+            predicted_status = (outputs[1].squeeze() > 0.5).float()
 
-            all_y_action_true.extend(y_action.cpu().numpy())
-            all_y_action_pred.extend(action_preds)
-            all_y_status_true.extend(y_status.cpu().numpy())
-            all_y_status_pred.extend(status_preds)
+            correct_action += (predicted_action == y_action).sum().item()
+            correct_status += (predicted_status == y_status).sum().item()
+            total += y_action.size(0)
 
-            loss1 = criterion_action(outputs[0], y_action.long())
-            loss2 = criterion_status(outputs[1].squeeze(), y_status.float())
-            loss = loss1 + loss2
-            total_loss += loss.item()
+    accuracy_action = correct_action / total
+    accuracy_status = correct_status / total
+    average_accuracy = (accuracy_action + accuracy_status) / 2
 
-    acc_action = accuracy_score(all_y_action_true, all_y_action_pred)
-    acc_status = accuracy_score(all_y_status_true, all_y_status_pred)
-
-    avg_val_loss = total_loss / len(data_loader)
-
-    print(f"Test Accuracy Action: {acc_action}, Test Accuracy Status: {acc_status}, Val Loss: {avg_val_loss:.4f}")
-
-    return acc_action, acc_status,avg_val_loss
+    return accuracy_action, accuracy_status, average_accuracy
 
 def plot_training_results(loss_history, test_accuracies_action, test_accuracies_status, num_epochs):
     epochs = range(1, num_epochs + 1)
+    
+    # 确保输出目录存在
+    os.makedirs(output_dir, exist_ok=True)
     
     plt.figure(figsize=(12, 5))
     
@@ -128,7 +172,12 @@ def plot_training_results(loss_history, test_accuracies_action, test_accuracies_
     plt.legend()
     
     plt.tight_layout()
-    plt.show()
+    
+    # 保存图像到output_dir目录
+    image_path = os.path.join(output_dir, f'training_results_{model_version}.png')
+    plt.savefig(image_path, dpi=300, bbox_inches='tight')
+    plt.close()  # 关闭图像，避免内存泄漏
+    print(f"训练结果图像已保存到: {image_path}")
 
 def get_accuracy_by_version(csv_file, version):
     """
@@ -224,13 +273,13 @@ test_accuracies_status = []
 # 设置训练轮数
 num_epochs = train_epoches_num
 MODEL_VERSION = model_version
-accuracy_file=r"./models/Accuracy.csv"
+os.makedirs(output_dir, exist_ok=True)
+accuracy_file=f"{output_dir}/Accuracy.csv"
 # 初始化最佳准确率和保存路径
 best_acc = 0.0
 best_acc_action=0.0
 best_acc_status=0.0
-model_save_path = r"./models/best_model.pth"
-model_save_path = model_save_path.replace(".pth", f"_{MODEL_VERSION}.pth")
+model_save_path = f"{output_dir}/best_model.pth"
 best_acc_action,best_acc_status,best_acc=get_accuracy_by_version(accuracy_file,MODEL_VERSION)
 
 if os.path.exists(model_save_path):
@@ -242,6 +291,12 @@ else:
 start_time = time.time()
 is_update=0
 
+# 早停机制参数
+patience = 10  # 容忍轮数
+min_lr = 1e-6  # 最小学习率阈值
+no_improve_count = 0  # 性能未提升计数
+best_val_loss = float('inf')  # 最佳验证损失
+
 # 模型训练并记录损失
 for epoch in range(num_epochs):
     start_time_epoch=time.time()
@@ -249,8 +304,11 @@ for epoch in range(num_epochs):
     loss_per_epoch = train_model(model, train_loader, criterion_action, criterion_status, optimizer, num_epochs=1)
     loss_history.extend(loss_per_epoch)  # 每个 epoch 只训练一次
 
+    # 验证模型并记录损失
+    val_loss = validate_model(model, test_loader, criterion_action, criterion_status)
+    
     # 测试模型并记录准确率
-    acc_action, acc_status, val_loss = test_model(model, test_loader, criterion_action, criterion_status)
+    acc_action, acc_status, avg_acc = test_model(model, test_loader)
     test_accuracies_action.append(acc_action)
     test_accuracies_status.append(acc_status)
 
@@ -259,9 +317,13 @@ for epoch in range(num_epochs):
     elapsed_time_epoch=end_time_epoch-start_time_epoch
     print(f"\n--- Epoch {epoch+1} ---")
     print(f"Action Accuracy: {acc_action:.4f}, Status Accuracy: {acc_status:.4f}")
+    print(f"Validation Loss: {val_loss:.4f}")
     print(f"Running time: {elapsed_time_epoch:.2f} s")
 
+    # 更新学习率
     scheduler.step(val_loss)
+    current_lr = optimizer.param_groups[0]['lr']
+    print(f"Current learning rate: {current_lr:.8f}")
 
     # 判断是否为最佳模型
     current_acc = (acc_action + acc_status) / 2  # 可以根据需要调整权重
@@ -272,23 +334,35 @@ for epoch in range(num_epochs):
         best_acc = current_acc
         torch.save(model.state_dict(),model_save_path)
         print(f"✅ Best model saved with average accuracy: {best_acc:.2f}")
+    
+    # 早停机制检查
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
+        no_improve_count = 0
+    else:
+        no_improve_count += 1
+    
+    # 检查早停条件：学习率过低且性能不再提升
+    if current_lr < min_lr and no_improve_count >= patience:
+        print(f"🚨 Early stopping triggered at epoch {epoch+1}")
+        print(f"Learning rate {current_lr:.8f} < {min_lr} and no improvement for {no_improve_count} epochs")
+        break
 
 end_time = time.time()
-
 elapsed_time = end_time - start_time
+actual_epochs = epoch + 1  # 实际训练的轮数
 
 if(is_update>0):
     update_accuracy_by_version(accuracy_file,MODEL_VERSION,best_acc_action,best_acc_status,best_acc)
 print(f"\n---------Training summary----------")
-print(f"Total number of training epochs:{num_epochs}")
+print(f"Total number of training epochs: {actual_epochs} (early stopped at epoch {actual_epochs})")
 print(f"Best test accuracy (Action): {best_acc_action*100:.4f}%")
 print(f"Best test accuracy (Status): {best_acc_status*100:.4f}%")
 print(f"Best model saved with average accuracy: {best_acc*100:.4f}%")
 print(f"Total Running time {elapsed_time:.2f} s")
-print(f"Average Running time {elapsed_time/num_epochs:.2f} s per epoch")
-print(f"Update number:{is_update}")
+print(f"Average Running time {elapsed_time/actual_epochs:.2f} s per epoch")
+print(f"Update number: {is_update}")
 print(f"Model saved to: {model_save_path}")
 
-
-# 可视化结果
-plot_training_results(loss_history, test_accuracies_action, test_accuracies_status, num_epochs=num_epochs)
+# 可视化结果 - 使用实际训练轮数
+plot_training_results(loss_history, test_accuracies_action, test_accuracies_status, num_epochs=actual_epochs)
