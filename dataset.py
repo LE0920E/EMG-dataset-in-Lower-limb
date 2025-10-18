@@ -12,7 +12,7 @@ from factory_model import device
 ACTION_LABELS = {'gait': 0, 'sitting': 1, 'standing': 2}
 STATUS_LABELS = {'N': 0, 'A': 1}  # N: Normal, A: Abnormal
 BATCH_SIZE = 32  # 减小批次大小以适应更大的窗口
-SEQ_LENGTH = 2000  # 序列长度
+SEQ_LENGTH = 1000  # 序列长度
 
 class EMGDataset(Dataset):
     def __init__(self, root_dir, seq_length=1000, apply_filtering=True, apply_standardization=True):

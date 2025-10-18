@@ -11,7 +11,7 @@ print(f"Using device: {device}")
 
 model_version = "v2.0"
 test_epoches_num=100
-train_epoches_num=1000
+train_epoches_num=5000
 
 output_dir = f"./models/{model_version}"
 
@@ -79,7 +79,7 @@ scheduler_descriptions = {
 # 默认使用plateau调度器
 # 如需修改调度器，请将下面的 'plateau' 替换为其他调度器名称
 # 可用的调度器: ['plateau', 'step', 'cosine', 'exponential', 'cosine_warm_restarts', 'cyclic', 'one_cycle', 'linear_warmup', 'multi_step', 'lambda', 'none']
-scheduler_name = 'plateau'  # 修改此行来切换调度器
+scheduler_name = 'step'  # 修改此行来切换调度器
 scheduler = schedulers[scheduler_name]
 print(f"当前使用的学习率调度器: {scheduler_name} - {scheduler_descriptions[scheduler_name]}")
 
