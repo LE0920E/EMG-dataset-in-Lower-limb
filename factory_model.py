@@ -13,7 +13,7 @@ model_version = "v2.0"
 test_epoches_num=100
 train_epoches_num=5000
 
-output_dir = f"./models/{model_version}"
+output_dir = f"./models_v3/{model_version}"
 
 
 MODEL_CLASSES = {

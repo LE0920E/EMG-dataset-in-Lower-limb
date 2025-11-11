@@ -26,19 +26,6 @@
 - **主要特点**: 自注意力机制，并行处理能力
 - **神经网络结构**: 输入层 → 位置编码 → Transformer编码器层 → 全连接层 → 输出层
 
-## 模型架构详情
-
-### LSMModel v1.1.1 架构图
-![LSMModel架构图](../models_v1/Model_v1.1.1.png)
-
-### LSTM_AttentionModel v1.1.2 架构图
-![LSTM_AttentionModel架构图](../models_v1/Model_v1.1.2.png)
-
-### CNN_LSTMModel v1.1.3 架构图
-![CNN_LSTMModel架构图](../models_v1/Model_v1.1.3.png)
-
-### TransformerModel v2.0 架构图
-![TransformerModel架构图](../models_v1/Model_v2.0.png)
 
 ## 技术参数
 
