@@ -156,7 +156,7 @@ class LSTM_AttentionModel(nn.Module):
     def __init__(
         self,
         input_size=5,
-        hidden_size=64,
+        hidden_size=200,
         num_classes_action=3,
         num_classes_status=1,
         num_layers=2
@@ -219,7 +219,7 @@ class CNN_LSTMModel(nn.Module):
     def __init__(
         self,
         input_size=5,
-        hidden_size=64,
+        hidden_size=200,
         num_classes_action=3,
         num_classes_status=1,
         num_layers=2,

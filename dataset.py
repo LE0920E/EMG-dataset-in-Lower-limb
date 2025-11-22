@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from scipy import signal
 from tqdm import tqdm
 from factory_model import device
@@ -12,34 +12,60 @@ from factory_model import device
 ACTION_LABELS = {'gait': 0, 'sitting': 1, 'standing': 2}
 STATUS_LABELS = {'N': 0, 'A': 1}  # N: Normal, A: Abnormal
 BATCH_SIZE = 32  # 减小批次大小以适应更大的窗口
-SEQ_LENGTH = 1000  # 序列长度
+SEQ_LENGTH = 500  # 序列长度
+
+# 滤波选项
+FILTER_OPTIONS = {
+    'none': '无滤波',
+    'bandpass': '滤波',
+    'bandpass_notch': '滤波+工频陷波(60Hz)'
+}
+FILTER='bandpass'
+
+# 标准化选项
+STANDARDIZATION_OPTIONS = {
+    'none': '无标准化',
+    'zscore': '全训练集z-score标准化',
+    'minmax': '归一化到[0,1]范围'
+}
+
+STANDARDIZATION='minmax'
 
 class EMGDataset(Dataset):
-    def __init__(self, root_dir, seq_length=1000, apply_filtering=True, apply_standardization=True):
+    def __init__(self, root_dir, seq_length=1000, filter_option='bandpass', standardization_option='zscore', scaler=None):
         """
         增强版EMG数据集类，包含膝盖屈伸角度和滤波处理
         
         Args:
             root_dir: 数据根目录
             seq_length: 序列长度（默认1000个时间点）
-            apply_filtering: 是否应用滤波处理
-            apply_standardization: 是否应用标准化
+            filter_option: 滤波选项 - 'none'（无滤波）、'bandpass'（滤波）、'bandpass_notch'（滤波+工频陷波）
+            standardization_option: 标准化选项 - 'none'（无标准化）、'zscore'（全训练集z-score标准化）
+            scaler: 预训练的标准化器（可选）
         """
         self.root_dir = root_dir
         self.seq_length = seq_length
-        self.apply_filtering = apply_filtering
-        self.apply_standardization = apply_standardization
+        self.filter_option = filter_option
+        self.standardization_option = standardization_option
         self.file_paths = []
-        self.scaler = None
+        self.scaler = scaler  # 使用传入的标准化器
         
         # 滤波参数
         self.lowcut = 20  # 低通滤波截止频率 (Hz)
         self.highcut = 450  # 高通滤波截止频率 (Hz)
+        self.notch_freq = 60  # 工频陷波频率 (Hz)
         self.fs = 1000  # 采样频率 (Hz)
         
+        # 验证选项
+        if filter_option not in FILTER_OPTIONS:
+            raise ValueError(f"无效的滤波选项: {filter_option}。可用选项: {list(FILTER_OPTIONS.keys())}")
+        if standardization_option not in STANDARDIZATION_OPTIONS:
+            raise ValueError(f"无效的标准化选项: {standardization_option}。可用选项: {list(STANDARDIZATION_OPTIONS.keys())}")
+        
+        print(f"滤波选项: {FILTER_OPTIONS[filter_option]}")
+        print(f"标准化选项: {STANDARDIZATION_OPTIONS[standardization_option]}")
+        
         self._load_file_paths()
-        if self.apply_standardization:
-            self._fit_scaler()
 
     def _load_file_paths(self):
         """加载所有CSV文件路径"""
@@ -52,17 +78,38 @@ class EMGDataset(Dataset):
                     self.file_paths.append(os.path.join(class_path, file))
         print(f"Loaded {len(self.file_paths)} files from {self.root_dir}")
 
-    def _butter_bandpass_filter(self, data, lowcut, highcut, fs, order=4):
-        """巴特沃斯带通滤波器"""
-        nyquist = 0.5 * fs
-        low = lowcut / nyquist
-        high = highcut / nyquist
-        b, a = signal.butter(order, [low, high], btype='band')
-        y = signal.filtfilt(b, a, data, axis=0)
-        return y
+    def _apply_filter(self, data):
+        """应用滤波处理"""
+        if self.filter_option == 'none':
+            return data
+            
+        nyquist = 0.5 * self.fs
+        low = self.lowcut / nyquist
+        high = self.highcut / nyquist
+        
+        # 设计巴特沃斯带通滤波器
+        b, a = signal.butter(4, [low, high], btype='band')
+        
+        # 对每个通道应用滤波
+        filtered_data = np.zeros_like(data)
+        for i in range(data.shape[1]):
+            filtered_data[:, i] = signal.filtfilt(b, a, data[:, i])
+        
+        # 如果需要工频陷波
+        if self.filter_option == 'bandpass_notch':
+            # 设计工频陷波滤波器（60Hz）
+            notch_freq = self.notch_freq / nyquist
+            quality = 30  # 品质因数
+            b_notch, a_notch = signal.iirnotch(notch_freq, quality)
+            
+            # 对每个通道应用陷波滤波
+            for i in range(filtered_data.shape[1]):
+                filtered_data[:, i] = signal.filtfilt(b_notch, a_notch, filtered_data[:, i])
+            
+        return filtered_data
 
-    def _fit_scaler(self):
-        """收集所有数据拟合标准化器"""
+    def fit_scaler(self):
+        """拟合标准化器（用于训练集）"""
         all_data = []
         for file_path in tqdm(self.file_paths, desc="Fitting scaler"):
             df = pd.read_csv(file_path)
@@ -95,18 +142,24 @@ class EMGDataset(Dataset):
                 data = df[available_columns].values
                 
                 # 应用滤波
-                if self.apply_filtering:
-                    data = self._butter_bandpass_filter(data, self.lowcut, self.highcut, self.fs)
+                if self.filter_option != 'none':
+                    data = self._apply_filter(data)
                 
                 all_data.append(data)
 
         if all_data:
             all_data = np.vstack(all_data)
-            self.scaler = StandardScaler()
+            if self.standardization_option == 'zscore':
+                self.scaler = StandardScaler()
+            elif self.standardization_option == 'minmax':
+                self.scaler = MinMaxScaler(feature_range=(0, 1))
+            
             self.scaler.fit(all_data)
-            print(f"Scaler fitted with {all_data.shape[0]} samples")
+            print(f"{self.standardization_option} scaler fitted with {all_data.shape[0]} samples")
+            return self.scaler
         else:
             print("Warning: No valid data found for scaler fitting")
+            return None
 
     def _parse_labels(self, filename):
         """从文件名解析标签"""
@@ -173,11 +226,11 @@ class EMGDataset(Dataset):
         data = df[available_columns].values
         
         # 应用滤波
-        if self.apply_filtering:
-            data = self._butter_bandpass_filter(data, self.lowcut, self.highcut, self.fs)
+        if self.filter_option != 'none':
+            data = self._apply_filter(data)
         
         # 应用标准化
-        if self.apply_standardization and self.scaler is not None:
+        if self.standardization_option in ['zscore', 'minmax'] and self.scaler is not None:
             data = self.scaler.transform(data)
         
         # 解析标签
@@ -198,28 +251,80 @@ class EMGDataset(Dataset):
 
 from torch.utils.data import random_split
 
-# 创建完整数据集（包含膝盖屈伸角度和滤波处理）
-full_dataset = EMGDataset(
-    root_dir='./gaits_data', 
-    seq_length=SEQ_LENGTH,  
-    apply_filtering=True,  # 启用滤波处理
-    apply_standardization=True  # 启用标准化
-)
+def create_datasets_with_separate_processing(root_dir='./gaits_data', seq_length=SEQ_LENGTH, 
+                                           filter_option=FILTER, standardization_option=STANDARDIZATION,
+                                           train_ratio=0.8, random_seed=42):
+    """
+    创建训练集和测试集，分别进行滤波和标准化处理
+    
+    Args:
+        root_dir: 数据根目录
+        seq_length: 序列长度
+        filter_option: 滤波选项
+        standardization_option: 标准化选项
+        train_ratio: 训练集比例
+        random_seed: 随机种子
+        
+    Returns:
+        train_dataset: 训练集
+        test_dataset: 测试集
+    """
+    print("=== 数据预处理流程 ===")
+    print(f"1. 先分割数据（训练集: {train_ratio*100}%, 测试集: {(1-train_ratio)*100}%）")
+    print(f"2. 对训练集和测试集分别进行滤波处理")
+    print(f"3. 在训练集上拟合标准化器")
+    print(f"4. 将训练集的标准化器应用到测试集")
+    print("====================")
+    
+    # 第一步：先分割文件路径
+    print("\n步骤1: 分割文件路径...")
+    
+    # 创建基础数据集来获取文件路径
+    base_dataset = EMGDataset(root_dir, seq_length, filter_option, standardization_option)
+    file_paths = base_dataset.file_paths
+    
+    # 随机分割文件路径
+    torch.manual_seed(random_seed)
+    indices = torch.randperm(len(file_paths))
+    train_size = int(len(file_paths) * train_ratio)
+    train_indices = indices[:train_size]
+    test_indices = indices[train_size:]
+    
+    train_file_paths = [file_paths[i] for i in train_indices]
+    test_file_paths = [file_paths[i] for i in test_indices]
+    
+    print(f"训练集文件数: {len(train_file_paths)}")
+    print(f"测试集文件数: {len(test_file_paths)}")
+    
+    # 第二步：创建训练集并拟合标准化器
+    print("\n步骤2: 创建训练集并拟合标准化器...")
+    
+    # 创建训练集
+    train_dataset = EMGDataset(root_dir, seq_length, filter_option, standardization_option)
+    train_dataset.file_paths = train_file_paths  # 替换为训练集文件路径
+    
+    # 在训练集上拟合标准化器
+    if standardization_option in ['zscore', 'minmax']:
+        train_dataset.fit_scaler()
+        print(f"训练集标准化器已拟合")
+    else:
+        print("无标准化处理")
+    
+    # 第三步：创建测试集（使用训练集的标准化器）
+    print("\n步骤3: 创建测试集...")
+    
+    test_dataset = EMGDataset(root_dir, seq_length, filter_option, standardization_option, scaler=train_dataset.scaler)
+    test_dataset.file_paths = test_file_paths  # 替换为测试集文件路径
+    
+    print(f"训练集大小: {len(train_dataset)}")
+    print(f"测试集大小: {len(test_dataset)}")
+    
+    return train_dataset, test_dataset
 
-print(f"完整数据集大小: {len(full_dataset)} 个样本")
-
-# 划分比例：80% 训练，20% 测试
-train_size = int(0.8 * len(full_dataset))
-test_size = len(full_dataset) - train_size
-
-# 随机划分（固定随机种子确保可重复性）
-train_dataset, test_dataset = random_split(
-    full_dataset, 
-    [train_size, test_size], 
-    generator=torch.Generator().manual_seed(42)
-)
-
-print(f"训练集大小: {len(train_dataset)}, 测试集大小: {len(test_dataset)}")
+# 创建数据集
+print("开始创建数据集...")
+train_dataset, test_dataset = create_datasets_with_separate_processing()
+print("数据集创建完成！")
 
 def dynamic_collate_fn(batch):
     """
@@ -272,6 +377,15 @@ test_loader = DataLoader(
     shuffle=False,  # 测试集不启用shuffle
     num_workers=0,
     collate_fn=dynamic_collate_fn
+)
+
+# 创建完整数据集用于验证（如果需要）
+full_dataset = EMGDataset(
+    root_dir='./gaits_data', 
+    seq_length=SEQ_LENGTH,  
+    filter_option=FILTER,  # 启用滤波处理
+    standardization_option=STANDARDIZATION,  # 启用标准化
+    scaler=train_dataset.scaler  # 使用训练集的标准化器
 )
 
 full_loader = DataLoader(

@@ -9,18 +9,18 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 
-model_version = "v2.0"
+model_version = "v1"
 test_epoches_num=100
-train_epoches_num=5000
+train_epoches_num=10
 
-output_dir = f"./models_v3/{model_version}"
+output_dir = f"./models/{model_version}"
 
 
 MODEL_CLASSES = {
-    'v1.1.1': models.LSMModel,          
-    'v1.1.2':models.LSTM_AttentionModel,
-    'v1.1.3':models.CNN_LSTMModel,
-    'v2.0': models.TransformerModel,     
+    'v1': models.LSMModel,          
+    'v2':models.LSTM_AttentionModel,
+    'v3':models.CNN_LSTMModel,
+    'v4': models.TransformerModel,     
 
 }
 
@@ -44,7 +44,7 @@ model = model.to(device)
 
 criterion_action = nn.CrossEntropyLoss()  
 criterion_status = nn.BCELoss()          
-optimizer = optim.Adam(model.parameters(), lr=0.005)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # 学习率调度器配置
 schedulers = {
@@ -79,7 +79,7 @@ scheduler_descriptions = {
 # 默认使用plateau调度器
 # 如需修改调度器，请将下面的 'plateau' 替换为其他调度器名称
 # 可用的调度器: ['plateau', 'step', 'cosine', 'exponential', 'cosine_warm_restarts', 'cyclic', 'one_cycle', 'linear_warmup', 'multi_step', 'lambda', 'none']
-scheduler_name = 'step'  # 修改此行来切换调度器
+scheduler_name = 'none'  # 修改此行来切换调度器
 scheduler = schedulers[scheduler_name]
 print(f"当前使用的学习率调度器: {scheduler_name} - {scheduler_descriptions[scheduler_name]}")
 

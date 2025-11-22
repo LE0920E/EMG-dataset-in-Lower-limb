@@ -12,8 +12,8 @@ import time
 from factory_model import output_dir,model, criterion_action, criterion_status, optimizer, scheduler, device, model_version, train_epoches_num, learning_rate_history
 from dataset import train_loader, test_loader, ACTION_LABELS, STATUS_LABELS
 
-# 设置matplotlib中文字体
-plt.rcParams['font.sans-serif'] = ['SimHei']
+# Set matplotlib font for English display
+plt.rcParams['font.sans-serif'] = ['Arial', 'DejaVu Sans', 'Liberation Sans']
 plt.rcParams['axes.unicode_minus'] = False
 
 class ModelTrainerWithVisualization:
@@ -202,8 +202,8 @@ class ModelTrainerWithVisualization:
         
         # 1. 训练损失曲线
         plt.figure(figsize=(10, 6))
-        plt.plot(epochs_range, self.train_loss_history, label='训练损失', color='blue', linewidth=2)
-        plt.title('训练损失曲线')
+        plt.plot(epochs_range, self.train_loss_history, label='Training Loss', color='blue', linewidth=2)
+        plt.title('Training Loss Curve')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.legend()
@@ -214,8 +214,8 @@ class ModelTrainerWithVisualization:
         
         # 2. 验证损失曲线
         plt.figure(figsize=(10, 6))
-        plt.plot(epochs_range, self.val_loss_history, label='验证损失', color='red', linewidth=2)
-        plt.title('验证损失曲线')
+        plt.plot(epochs_range, self.val_loss_history, label='Validation Loss', color='red', linewidth=2)
+        plt.title('Validation Loss Curve')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.legend()
@@ -226,8 +226,8 @@ class ModelTrainerWithVisualization:
         
         # 3. 训练动作准确率曲线
         plt.figure(figsize=(10, 6))
-        plt.plot(epochs_range, self.train_acc_action_history, label='训练动作准确率', color='green', linewidth=2)
-        plt.title('训练动作准确率曲线')
+        plt.plot(epochs_range, self.train_acc_action_history, label='Training Action Accuracy', color='green', linewidth=2)
+        plt.title('Training Action Accuracy Curve')
         plt.xlabel('Epoch')
         plt.ylabel('Accuracy')
         plt.legend()
@@ -238,8 +238,8 @@ class ModelTrainerWithVisualization:
         
         # 4. 验证动作准确率曲线
         plt.figure(figsize=(10, 6))
-        plt.plot(epochs_range, self.val_acc_action_history, label='验证动作准确率', color='orange', linewidth=2)
-        plt.title('验证动作准确率曲线')
+        plt.plot(epochs_range, self.val_acc_action_history, label='Validation Action Accuracy', color='orange', linewidth=2)
+        plt.title('Validation Action Accuracy Curve')
         plt.xlabel('Epoch')
         plt.ylabel('Accuracy')
         plt.legend()
@@ -250,8 +250,8 @@ class ModelTrainerWithVisualization:
         
         # 5. 训练状态准确率曲线
         plt.figure(figsize=(10, 6))
-        plt.plot(epochs_range, self.train_acc_status_history, label='训练状态准确率', color='cyan', linewidth=2)
-        plt.title('训练状态准确率曲线')
+        plt.plot(epochs_range, self.train_acc_status_history, label='Training Status Accuracy', color='cyan', linewidth=2)
+        plt.title('Training Status Accuracy Curve')
         plt.xlabel('Epoch')
         plt.ylabel('Accuracy')
         plt.legend()
@@ -262,8 +262,8 @@ class ModelTrainerWithVisualization:
         
         # 6. 验证状态准确率曲线
         plt.figure(figsize=(10, 6))
-        plt.plot(epochs_range, self.val_acc_status_history, label='验证状态准确率', color='magenta', linewidth=2)
-        plt.title('验证状态准确率曲线')
+        plt.plot(epochs_range, self.val_acc_status_history, label='Validation Status Accuracy', color='magenta', linewidth=2)
+        plt.title('Validation Status Accuracy Curve')
         plt.xlabel('Epoch')
         plt.ylabel('Accuracy')
         plt.legend()
@@ -275,7 +275,7 @@ class ModelTrainerWithVisualization:
         # 7. 学习率曲线（单独保存）
         plt.figure(figsize=(10, 6))
         plt.plot(epochs_range, self.learning_rate_history)
-        plt.title('学习率变化曲线')
+        plt.title('Learning Rate Curve')
         plt.xlabel('Epoch')
         plt.ylabel('Learning Rate')
         plt.grid(True)
@@ -288,27 +288,27 @@ class ModelTrainerWithVisualization:
         cm = confusion_matrix(true_labels, pred_labels)
         plt.figure(figsize=(8, 6))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-        plt.title(f'{task_name}混淆矩阵')
-        plt.ylabel('真实标签')
-        plt.xlabel('预测标签')
+        plt.title(f'{task_name.capitalize()} Confusion Matrix')
+        plt.ylabel('True Label')
+        plt.xlabel('Predicted Label')
         plt.savefig(f'{self.output_dir}/confusion_matrix_{task_name}.png', dpi=300, bbox_inches='tight')
         plt.close()
 
     def plot_roc_curve(self, true_labels, prob_scores, task_name):
         """绘制ROC曲线"""
         # 对于多分类问题，只对状态分类（二分类）绘制ROC曲线
-        if task_name == '状态':
+        if task_name == 'status':
             fpr, tpr, _ = roc_curve(true_labels, prob_scores)
             roc_auc = auc(fpr, tpr)
             
             plt.figure(figsize=(8, 6))
-            plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC曲线 (AUC = {roc_auc:.2f})')
+            plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC Curve (AUC = {roc_auc:.2f})')
             plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
             plt.xlim([0.0, 1.0])
             plt.ylim([0.0, 1.05])
-            plt.xlabel('假正率')
-            plt.ylabel('真正率')
-            plt.title(f'{task_name} ROC曲线')
+            plt.xlabel('False Positive Rate')
+            plt.ylabel('True Positive Rate')
+            plt.title(f'{task_name.capitalize()} ROC Curve')
             plt.legend(loc="lower right")
             plt.grid(True)
             plt.savefig(f'{self.output_dir}/roc_curve_{task_name}.png', dpi=300, bbox_inches='tight')
@@ -317,7 +317,7 @@ class ModelTrainerWithVisualization:
             return roc_auc
         else:
             # 对于动作分类（多分类），跳过ROC曲线绘制
-            print(f"跳过{task_name}的ROC曲线绘制（多分类问题）")
+            print(f"Skipping ROC curve for {task_name} (multi-class problem)")
             return 0.0
 
     def plot_feature_importance(self, features, labels):
@@ -330,9 +330,9 @@ class ModelTrainerWithVisualization:
             plt.figure(figsize=(10, 8))
             scatter = plt.scatter(features_2d[:, 0], features_2d[:, 1], c=labels, cmap='viridis', alpha=0.6)
             plt.colorbar(scatter)
-            plt.title('PCA特征可视化')
-            plt.xlabel('主成分1')
-            plt.ylabel('主成分2')
+            plt.title('PCA Feature Visualization')
+            plt.xlabel('Principal Component 1')
+            plt.ylabel('Principal Component 2')
             plt.savefig(f'{self.output_dir}/feature_importance_pca.png', dpi=300, bbox_inches='tight')
             plt.close()
 
@@ -345,9 +345,9 @@ class ModelTrainerWithVisualization:
             plt.figure(figsize=(12, 6))
             plt.imshow(attention_weights.cpu().numpy(), cmap='hot', interpolation='nearest')
             plt.colorbar()
-            plt.title('注意力权重热图')
-            plt.xlabel('时间步')
-            plt.ylabel('样本')
+            plt.title('Attention Weights Heatmap')
+            plt.xlabel('Time Steps')
+            plt.ylabel('Samples')
             plt.savefig(f'{self.output_dir}/attention_weights.png', dpi=300, bbox_inches='tight')
             plt.close()
 
@@ -359,16 +359,16 @@ class ModelTrainerWithVisualization:
         
         # 错误类型统计
         error_types = {
-            '动作正确-状态错误': np.sum(action_correct & ~status_correct),
-            '动作错误-状态正确': np.sum(~action_correct & status_correct),
-            '两者都错误': np.sum(~action_correct & ~status_correct),
-            '两者都正确': np.sum(action_correct & status_correct)
+            'Action Correct-Status Wrong': np.sum(action_correct & ~status_correct),
+            'Action Wrong-Status Correct': np.sum(~action_correct & status_correct),
+            'Both Wrong': np.sum(~action_correct & ~status_correct),
+            'Both Correct': np.sum(action_correct & status_correct)
         }
         
         plt.figure(figsize=(10, 6))
         plt.bar(error_types.keys(), error_types.values())
-        plt.title('错误类型分析')
-        plt.ylabel('样本数量')
+        plt.title('Error Type Analysis')
+        plt.ylabel('Number of Samples')
         plt.xticks(rotation=45)
         plt.tight_layout()
         plt.savefig(f'{self.output_dir}/error_analysis.png', dpi=300, bbox_inches='tight')
@@ -385,11 +385,11 @@ class ModelTrainerWithVisualization:
         
         # 这里可以扩展为比较多个模型，目前只绘制当前模型
         plt.figure(figsize=(8, 6))
-        plt.scatter(total_params, final_acc_action, label='动作准确率', s=100)
-        plt.scatter(total_params, final_acc_status, label='状态准确率', s=100)
-        plt.xlabel('模型参数数量')
-        plt.ylabel('准确率')
-        plt.title('模型复杂度与性能关系')
+        plt.scatter(total_params, final_acc_action, label='Action Accuracy', s=100)
+        plt.scatter(total_params, final_acc_status, label='Status Accuracy', s=100)
+        plt.xlabel('Number of Model Parameters')
+        plt.ylabel('Accuracy')
+        plt.title('Model Complexity vs Performance')
         plt.legend()
         plt.grid(True)
         plt.savefig(f'{self.output_dir}/complexity_vs_performance.png', dpi=300, bbox_inches='tight')
@@ -412,12 +412,137 @@ class ModelTrainerWithVisualization:
         
         df = pd.DataFrame(data)
         df.to_csv(csv_file, index=False)
-        print(f"准确率已保存到: {csv_file}")
-
-    def train(self, num_epochs):
-        """完整的训练流程，包含早停机制"""
-        print(f"开始训练模型 {self.model_version}...")
+        print(f"Accuracy saved to: {csv_file}")
         
+        # 保存训练历史数据用于恢复训练曲线
+        self.save_training_history()
+    
+    def save_training_history(self):
+        """保存训练历史数据到CSV文件"""
+        history_file = f"{self.output_dir}/training_history.csv"
+        
+        # 创建训练历史DataFrame
+        history_data = {
+            'epoch': list(range(1, len(self.train_loss_history) + 1)),
+            'train_loss': self.train_loss_history,
+            'val_loss': self.val_loss_history,
+            'train_acc_action': self.train_acc_action_history,
+            'train_acc_status': self.train_acc_status_history,
+            'val_acc_action': self.val_acc_action_history,
+            'val_acc_status': self.val_acc_status_history,
+            'learning_rate': self.learning_rate_history
+        }
+        
+        df_history = pd.DataFrame(history_data)
+        df_history.to_csv(history_file, index=False)
+        print(f"Training history saved to: {history_file}")
+    
+    def load_training_history(self):
+        """从CSV文件加载训练历史数据"""
+        history_file = f"{self.output_dir}/training_history.csv"
+        
+        if os.path.exists(history_file):
+            df_history = pd.read_csv(history_file)
+            
+            # 恢复训练历史数据
+            self.train_loss_history = df_history['train_loss'].tolist()
+            self.val_loss_history = df_history['val_loss'].tolist()
+            self.train_acc_action_history = df_history['train_acc_action'].tolist()
+            self.train_acc_status_history = df_history['train_acc_status'].tolist()
+            self.val_acc_action_history = df_history['val_acc_action'].tolist()
+            self.val_acc_status_history = df_history['val_acc_status'].tolist()
+            self.learning_rate_history = df_history['learning_rate'].tolist()
+            
+            print(f"Training history loaded from: {history_file}")
+            print(f"Loaded {len(self.train_loss_history)} epochs of training history")
+            return True
+        
+        return False
+
+    def check_existing_results(self):
+        """检查是否已存在训练结果"""
+        model_path = f'{self.output_dir}/best_model.pth'
+        accuracy_path = f'{self.output_dir}/Accuracy.csv'
+        
+        # 检查模型文件和准确率文件是否存在
+        if os.path.exists(model_path) and os.path.exists(accuracy_path):
+            print(f"Found existing training results, loading model and accuracy data...")
+            
+            # 加载模型
+            self.model.load_state_dict(torch.load(model_path, map_location=device))
+            
+            # 读取准确率数据
+            df = pd.read_csv(accuracy_path)
+            if not df.empty:
+                final_acc_action = df['Action accuracy'].iloc[0]
+                final_acc_status = df['Status accuracy'].iloc[0]
+                avg_accuracy = df['average accuracy'].iloc[0]
+                
+                print(f"Loaded accuracy data:")
+                print(f"  Action accuracy: {final_acc_action:.4f}")
+                print(f"  Status accuracy: {final_acc_status:.4f}")
+                print(f"  Average accuracy: {avg_accuracy:.4f}")
+                
+                # 设置最终准确率用于后续可视化
+                self.final_acc_action = final_acc_action
+                self.final_acc_status = final_acc_status
+                
+                # 尝试加载训练历史数据
+                if self.load_training_history():
+                    print("Training curves can be regenerated from saved history data")
+                else:
+                    print("No training history data found, training curves will not be available")
+                
+                return True
+        
+        return False
+
+    def train(self, num_epochs, resume_training=False):
+        """完整的训练流程，包含早停机制和继续训练功能"""
+        
+        # 检查是否已存在训练结果
+        if self.check_existing_results():
+            if not resume_training:
+                print(f"Model {self.model_version} already has training results, skipping training process")
+                
+                # 如果加载了训练历史数据，重新生成训练曲线
+                if hasattr(self, 'train_loss_history') and len(self.train_loss_history) > 0:
+                    print("Regenerating training curves from saved history...")
+                    predictions = self.collect_predictions()
+                    self.generate_all_visualizations(predictions)
+                
+                # 返回默认的时间统计值（因为跳过了训练过程）
+                return 0.0, 0.0, len(self.train_loss_history)
+            else:
+                 print(f"Model {self.model_version} found, resuming training from epoch {len(self.train_loss_history) + 1}")
+                 
+                 # 恢复优化器状态
+                 optimizer_path = f'{self.output_dir}/optimizer_state.pth'
+                 if os.path.exists(optimizer_path):
+                     optimizer.load_state_dict(torch.load(optimizer_path, map_location=device))
+                     print("Optimizer state loaded successfully")
+                 
+                 # 简化调度器处理：直接使用默认配置继续训练
+                 if scheduler is not None:
+                     print("Using default scheduler configuration for continued training")
+                     # 不需要重置调度器，直接使用当前配置继续训练
+                     # 调度器会自动从当前状态继续
+        else:
+            # 如果没有现有结果，初始化训练历史
+            self.train_loss_history = []
+            self.val_loss_history = []
+            self.train_acc_action_history = []
+            self.train_acc_status_history = []
+            self.val_acc_action_history = []
+            self.val_acc_status_history = []
+            self.learning_rate_history = []
+            
+            print(f"Starting new training for model {self.model_version}...")
+        
+        print(f"Training model {self.model_version}...")
+        
+        # 初始化训练状态
+        start_epoch = len(self.train_loss_history)
         best_val_acc = 0.0
         best_model_state = None
         total_time = 0.0
@@ -430,7 +555,13 @@ class ModelTrainerWithVisualization:
         best_val_loss = float('inf')  # 最佳验证损失
         actual_epochs = num_epochs  # 实际训练轮数
         
-        for epoch in range(num_epochs):
+        # 如果继续训练，恢复最佳验证准确率
+        if resume_training and len(self.val_acc_action_history) > 0:
+            best_val_acc = (self.val_acc_action_history[-1] + self.val_acc_status_history[-1]) / 2
+            best_val_loss = self.val_loss_history[-1] if len(self.val_loss_history) > 0 else float('inf')
+            print(f"Resuming from best validation accuracy: {best_val_acc:.4f}")
+        
+        for epoch in range(start_epoch, start_epoch + num_epochs):
             start_time = time.time()
             
             # 训练
@@ -444,11 +575,12 @@ class ModelTrainerWithVisualization:
             self.learning_rate_history.append(current_lr)
             learning_rate_history.append(current_lr)  # 更新全局记录
             
-            # 更新学习率调度器
-            if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
-                scheduler.step(val_loss)
-            else:
-                scheduler.step()
+            # 更新学习率调度器（如果存在）
+            if scheduler is not None:
+                if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    scheduler.step(val_loss)
+                else:
+                    scheduler.step()
             
             # 记录历史
             self.train_loss_history.append(train_loss)
@@ -477,8 +609,10 @@ class ModelTrainerWithVisualization:
             total_time += epoch_time
             
             # 打印进度
-            if (epoch + 1) % 10 == 0 or epoch == 0:
-                print(f'Epoch {epoch+1}/{num_epochs}, '
+            current_epoch = epoch + 1
+            total_epochs = start_epoch + num_epochs
+            if current_epoch % 10 == 0 or current_epoch == start_epoch + 1:
+                print(f'Epoch {current_epoch}/{total_epochs}, '
                       f'Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, '
                       f'LR: {current_lr:.8f}, Time: {epoch_time:.2f}s')
                 print(f'Action Acc - Train: {train_acc_action:.4f}, Val: {val_acc_action:.4f}')
@@ -496,6 +630,11 @@ class ModelTrainerWithVisualization:
         if best_model_state:
             self.model.load_state_dict(best_model_state)
         
+        # 保存优化器状态
+        torch.save(optimizer.state_dict(), f'{self.output_dir}/optimizer_state.pth')
+        
+        # 注意：不保存调度器状态，因为每次继续训练都会重置调度器
+        
         # 收集最终预测结果
         predictions = self.collect_predictions()
         
@@ -506,8 +645,8 @@ class ModelTrainerWithVisualization:
         self.save_accuracy_to_csv(self.val_acc_action_history[-1], self.val_acc_status_history[-1])
         
         avg_time = total_time / actual_epochs
-        print(f"训练完成！实际训练轮次: {actual_epochs}, 总时间: {total_time:.2f}s, 平均每轮时间: {avg_time:.2f}s")
-        print(f"模型和可视化结果保存在: {self.output_dir}")
+        print(f"Training completed! Actual training epochs: {actual_epochs}, Total time: {total_time:.2f}s, Average epoch time: {avg_time:.2f}s")
+        print(f"Model and visualization results saved to: {self.output_dir}")
         
         return total_time, avg_time, actual_epochs
 
@@ -523,9 +662,11 @@ class ModelTrainerWithVisualization:
         self.plot_confusion_matrix(true_status, pred_status, 'status')
         
         # 3. ROC曲线
+        # 修复警告：先将features转换为numpy数组，再转换为tensor
+        features_array = np.array(features)
         roc_auc_action = self.plot_roc_curve(true_action, 
                                             [p[pred_action[i]] for i, p in enumerate(
-                                                torch.softmax(torch.tensor(features), dim=1).numpy())], 
+                                                torch.softmax(torch.tensor(features_array), dim=1).numpy())], 
                                             'action')
         roc_auc_status = self.plot_roc_curve(true_status, prob_status, 'status')
         
@@ -544,21 +685,21 @@ class ModelTrainerWithVisualization:
         print(f"ROC AUC - Action: {roc_auc_action:.4f}, Status: {roc_auc_status:.4f}")
 
 # 主训练函数
-def main():
+def main(resume_training=False):
     # 创建训练器
     trainer = ModelTrainerWithVisualization(model, train_loader, test_loader, model_version)
     
     # 开始训练并获取时间统计
-    total_time, avg_time, actual_epochs = trainer.train(train_epoches_num)
+    total_time, avg_time, actual_epochs = trainer.train(train_epoches_num, resume_training)
     
     # 打印详细的时间统计
     print("\n" + "="*50)
-    print("训练时间统计:")
-    print(f"计划训练轮次: {train_epoches_num}")
-    print(f"实际训练轮次: {actual_epochs}")
-    print(f"总训练时间: {total_time:.2f} 秒 ({total_time/60:.2f} 分钟)")
-    print(f"平均每轮时间: {avg_time:.2f} 秒")
+    print("Training Time Statistics:")
+    print(f"Planned training epochs: {train_epoches_num}")
+    print(f"Actual training epochs: {actual_epochs}")
+    print(f"Total training time: {total_time:.2f} seconds ({total_time/60:.2f} minutes)")
+    print(f"Average epoch time: {avg_time:.2f} seconds")
     print("="*50)
 
 if __name__ == "__main__":
-    main()
+    main(resume_training=True)
