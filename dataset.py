@@ -29,7 +29,7 @@ STANDARDIZATION_OPTIONS = {
     'minmax': '归一化到[0,1]范围'
 }
 
-STANDARDIZATION='minmax'
+STANDARDIZATION='zscore'
 
 class EMGDataset(Dataset):
     def __init__(self, root_dir, seq_length=1000, filter_option='bandpass', standardization_option='zscore', scaler=None):

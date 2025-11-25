@@ -1,0 +1,5 @@
+sample_id,predicted,actual,error_type
+4,1,0,Normal -> Abnormal
+7,0,1,Abnormal -> Normal
+8,0,1,Abnormal -> Normal
+13,1,0,Normal -> Abnormal

@@ -1,0 +1,5 @@
+class_type,auc_score
+Action_Gait,0.9090909090909091
+Action_Sitting,0.9777777777777777
+Action_Standing,0.9166666666666667
+Status_Classification,0.5

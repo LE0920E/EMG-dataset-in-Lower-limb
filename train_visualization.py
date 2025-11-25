@@ -395,19 +395,21 @@ class ModelTrainerWithVisualization:
         plt.savefig(f'{self.output_dir}/complexity_vs_performance.png', dpi=300, bbox_inches='tight')
         plt.close()
 
-    def save_accuracy_to_csv(self, final_acc_action, final_acc_status):
+    def save_accuracy_to_csv(self, train_acc_action, train_acc_status, test_acc_action, test_acc_status):
         """保存准确率到CSV文件"""
         csv_file = f"{self.output_dir}/Accuracy.csv"
         
-        # 计算平均准确率
-        avg_accuracy = (final_acc_action + final_acc_status) / 2
+        # 计算平均准确率（四个准确率的平均值）
+        avg_accuracy = (train_acc_action + train_acc_status + test_acc_action + test_acc_status) / 4
         
         # 创建DataFrame
         data = {
             'Version': [self.model_version],
-            'Action accuracy': [final_acc_action],
-            'Status accuracy': [final_acc_status],
-            'average accuracy': [avg_accuracy]
+            'train_action_accuracy': [train_acc_action],
+            'train_status_accuracy': [train_acc_status],
+            'test_action_accuracy': [test_acc_action],
+            'test_status_accuracy': [test_acc_status],
+            'average_accuracy': [avg_accuracy]
         }
         
         df = pd.DataFrame(data)
@@ -474,18 +476,39 @@ class ModelTrainerWithVisualization:
             # 读取准确率数据
             df = pd.read_csv(accuracy_path)
             if not df.empty:
-                final_acc_action = df['Action accuracy'].iloc[0]
-                final_acc_status = df['Status accuracy'].iloc[0]
-                avg_accuracy = df['average accuracy'].iloc[0]
-                
-                print(f"Loaded accuracy data:")
-                print(f"  Action accuracy: {final_acc_action:.4f}")
-                print(f"  Status accuracy: {final_acc_status:.4f}")
-                print(f"  Average accuracy: {avg_accuracy:.4f}")
-                
-                # 设置最终准确率用于后续可视化
-                self.final_acc_action = final_acc_action
-                self.final_acc_status = final_acc_status
+                # 检查CSV格式（新格式包含训练集准确率）
+                if 'train_action_accuracy' in df.columns:
+                    # 新格式：包含训练集准确率
+                    train_acc_action = df['train_action_accuracy'].iloc[0]
+                    train_acc_status = df['train_status_accuracy'].iloc[0]
+                    test_acc_action = df['test_action_accuracy'].iloc[0]
+                    test_acc_status = df['test_status_accuracy'].iloc[0]
+                    avg_accuracy = df['average_accuracy'].iloc[0]
+                    
+                    print(f"Loaded accuracy data (new format):")
+                    print(f"  Train Action accuracy: {train_acc_action:.4f}")
+                    print(f"  Train Status accuracy: {train_acc_status:.4f}")
+                    print(f"  Test Action accuracy: {test_acc_action:.4f}")
+                    print(f"  Test Status accuracy: {test_acc_status:.4f}")
+                    print(f"  Average accuracy: {avg_accuracy:.4f}")
+                    
+                    # 设置最终准确率用于后续可视化（使用测试集准确率）
+                    self.final_acc_action = test_acc_action
+                    self.final_acc_status = test_acc_status
+                else:
+                    # 旧格式：只包含测试集准确率
+                    test_acc_action = df['Action accuracy'].iloc[0]
+                    test_acc_status = df['Status accuracy'].iloc[0]
+                    avg_accuracy = df['average accuracy'].iloc[0]
+                    
+                    print(f"Loaded accuracy data (old format):")
+                    print(f"  Action accuracy: {test_acc_action:.4f}")
+                    print(f"  Status accuracy: {test_acc_status:.4f}")
+                    print(f"  Average accuracy: {avg_accuracy:.4f}")
+                    
+                    # 设置最终准确率用于后续可视化
+                    self.final_acc_action = test_acc_action
+                    self.final_acc_status = test_acc_status
                 
                 # 尝试加载训练历史数据
                 if self.load_training_history():
@@ -548,18 +571,22 @@ class ModelTrainerWithVisualization:
         total_time = 0.0
         epoch_times = []
         
+        # 初始化最佳准确率记录
+        best_train_acc_action = 0.0
+        best_train_acc_status = 0.0
+        
         # 早停机制参数
         patience = 10  # 容忍轮数
         min_lr = 1e-6  # 最小学习率阈值
         no_improve_count = 0  # 性能未提升计数
-        best_val_loss = float('inf')  # 最佳验证损失
+        best_avg_acc = 0.0  # 最佳四个准确率平均值
         actual_epochs = num_epochs  # 实际训练轮数
         
         # 如果继续训练，恢复最佳验证准确率
         if resume_training and len(self.val_acc_action_history) > 0:
-            best_val_acc = (self.val_acc_action_history[-1] + self.val_acc_status_history[-1]) / 2
-            best_val_loss = self.val_loss_history[-1] if len(self.val_loss_history) > 0 else float('inf')
-            print(f"Resuming from best validation accuracy: {best_val_acc:.4f}")
+            best_avg_acc = (self.train_acc_action_history[-1] + self.train_acc_status_history[-1] + 
+                           self.val_acc_action_history[-1] + self.val_acc_status_history[-1]) / 4
+            print(f"Resuming from best 4-accuracy average: {best_avg_acc:.4f}")
         
         for epoch in range(start_epoch, start_epoch + num_epochs):
             start_time = time.time()
@@ -590,17 +617,19 @@ class ModelTrainerWithVisualization:
             self.val_acc_action_history.append(val_acc_action)
             self.val_acc_status_history.append(val_acc_status)
             
-            # 保存最佳模型
-            current_val_acc = (val_acc_action + val_acc_status) / 2
-            if current_val_acc > best_val_acc:
-                best_val_acc = current_val_acc
+            # 保存最佳模型（基于四个准确率的平均值：训练集动作、训练集状态、测试集动作、测试集状态）
+            current_avg_acc = (train_acc_action + train_acc_status + val_acc_action + val_acc_status) / 4
+            if current_avg_acc > best_avg_acc:
+                best_avg_acc = current_avg_acc
                 best_model_state = self.model.state_dict().copy()
                 torch.save(best_model_state, f'{self.output_dir}/best_model.pth')
-            
-            # 早停机制检查
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-                no_improve_count = 0
+                
+                # 记录训练集最佳准确率
+                best_train_acc_action = train_acc_action
+                best_train_acc_status = train_acc_status
+                
+                print(f'  New best model saved! (4-Acc Avg: {current_avg_acc:.4f}, Train Action: {train_acc_action:.4f}, Train Status: {train_acc_status:.4f}, Val Action: {val_acc_action:.4f}, Val Status: {val_acc_status:.4f})')
+                no_improve_count = 0  # 重置未提升计数
             else:
                 no_improve_count += 1
             
@@ -642,7 +671,7 @@ class ModelTrainerWithVisualization:
         self.generate_all_visualizations(predictions)
         
         # 保存准确率
-        self.save_accuracy_to_csv(self.val_acc_action_history[-1], self.val_acc_status_history[-1])
+        self.save_accuracy_to_csv(best_train_acc_action, best_train_acc_status, self.val_acc_action_history[-1], self.val_acc_status_history[-1])
         
         avg_time = total_time / actual_epochs
         print(f"Training completed! Actual training epochs: {actual_epochs}, Total time: {total_time:.2f}s, Average epoch time: {avg_time:.2f}s")

@@ -1,0 +1,42 @@
+
+=== Ablation Experiment Final Report ===
+Version: v1
+
+Model Architecture:
+- Input: 4 muscle EMG signals (Recto Femoral, Biceps Femoral, EMG Semitendinoso, Vasto Medial) + 1 joint angle (Flexo-Extension)
+- Output: Action classification (3 classes) + Status classification (2 classes)
+- Sequence length: 1000 (1 second window)
+- Total parameters: 976,705
+- Trainable parameters: 976,705
+
+Training Configuration:
+- Optimizer: Adam (lr=0.001, weight_decay=0.0001)
+- Loss function: CrossEntropyLoss
+- Scheduler: CosineAnnealingLR (T_max=500)
+- Epochs: 500
+- Batch size: 32
+
+Final Results:
+- Test Loss: 1.0313
+- Action Classification Accuracy: 71.43%
+- Status Classification Accuracy: 85.71%
+
+Dataset Information:
+- Training samples: 52
+- Test samples: 14
+- Action classes: Gait, Sitting, Standing
+- Status classes: Normal, Abnormal
+- Selected parameters: Flexo-Extension, Recto Femoral, Biceps Femoral, EMG Semitendinoso, Vasto Medial
+
+Generated Files:
+- Training curves: train_loss_curve.png, train_action_accuracy_curve.png, train_status_accuracy_curve.png, learning_rate_curve.png
+- Validation curves: validation_loss_curve.png, validation_action_accuracy_curve.png, validation_status_accuracy_curve.png, validation_comprehensive_curve.png
+- ROC curves: roc_curve_action.png, roc_curve_status.png, roc_curve_comprehensive.png
+- Confusion matrices: confusion_matrix_action.png, confusion_matrix_status.png
+- Training history: training_history.csv
+- Error analysis: action_errors.csv, status_errors.csv
+- Classification reports: action_classification_report.csv, status_classification_report.csv
+- AUC scores: auc_scores.csv
+- Accuracy data: Accuracy.csv
+
+=== End of Report ===

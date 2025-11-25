@@ -1,0 +1,5 @@
+sample_id,predicted,actual,error_type
+4,0,1,Sitting -> Gait
+5,0,2,Standing -> Gait
+8,2,1,Sitting -> Standing
+9,2,0,Gait -> Standing

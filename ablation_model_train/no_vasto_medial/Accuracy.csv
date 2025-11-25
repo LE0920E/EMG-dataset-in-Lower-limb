@@ -1,0 +1,2 @@
+version,train_action_accuracy,train_status_accuracy,test_action_accuracy,test_status_accuracy,average_accuracy
+v1,78.84615384615384,82.6923076923077,100.0,85.71428571428571,86.81318681318682
