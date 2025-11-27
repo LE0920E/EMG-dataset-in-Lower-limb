@@ -1,0 +1,7 @@
+Parameter Combination,Train Loss Mean (after 30 epochs),Train Loss Variance (after 30 epochs),Validation Loss Mean (after 30 epochs),Validation Loss Variance (after 30 epochs)
+All Features,0.8495,0.0245,1.1281,0.0738
+No Biceps Femoral,0.8726,0.0216,1.0621,0.0731
+No EMG Semitendinoso,0.8836,0.0329,1.096,0.0873
+No Flexo Extension,0.9837,0.021,1.2539,0.0677
+No Recto Femoral,0.8782,0.0204,1.1747,0.0771
+No Vasto Medial,0.8598,0.0226,0.9461,0.05
